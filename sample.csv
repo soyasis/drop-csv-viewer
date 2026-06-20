@@ -1,0 +1,13 @@
+id,name,department,salary,start_date,notes
+1,Ada Lovelace,Engineering,"$145,000",2021-03-14,"First hire, founding team"
+2,Alan Turing,Engineering,"$152,500",2020-11-02,Cryptography
+3,Grace Hopper,Platform,"$138,000",2022-01-20,"Compilers, tooling"
+4,Katherine Johnson,Data,"$129,750",2022-06-08,Orbital mechanics
+5,Margaret Hamilton,Engineering,"$161,000",2019-09-30,"Led Apollo, very senior"
+6,Edsger Dijkstra,Platform,"$144,200",2021-07-15,Algorithms
+7,Barbara Liskov,Engineering,"$158,300",2020-02-11,"Types, substitution"
+8,Claude Shannon,Data,"$133,900",2023-04-01,Information theory
+9,Linus Torvalds,Platform,"$149,000",2021-12-05,"Kernels, git"
+10,Radia Perlman,Engineering,"$141,600",2022-10-22,"Networks, ""spanning tree"""
+11,Tim Berners-Lee,Platform,"$155,000",2020-05-19,The web
+12,Donald Knuth,Data,"$147,400",2023-08-30,"Analysis of algorithms, TAOCP"
