@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="firefox-extension/icon.svg" alt="CSV Table Viewer logo" width="96" height="96">
+</p>
+
 # firefox-csv-viewer
 
 Preview local CSV/TSV files as a clean, searchable, sortable table — without opening
