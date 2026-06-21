@@ -11,16 +11,41 @@
   let sortDir = "asc";   // "asc" | "desc"
 
   const $ = (id) => document.getElementById(id);
-  const toolbar = $("toolbar"), empty = $("empty"), tableWrap = $("tableWrap");
+  const toolbar = $("toolbar"), empty = $("empty"), tableWrap = $("tableWrap"), statusbar = $("statusbar");
   const theadEl = $("thead"), tbodyEl = $("tbody");
-  const searchEl = $("search"), countEl = $("count");
+  const searchEl = $("search"), countEl = $("count"), statsEl = $("stats");
   const fileNameEl = $("fileName"), fileDimsEl = $("fileDims");
-  const overlay = $("overlay"), fileInput = $("fileInput");
+  const overlay = $("overlay"), fileInput = $("fileInput"), themeBtn = $("theme");
 
   let currentName = "table.csv";
   const colWidths = {};                       // col index -> px (only resized columns)
+  const selCols = new Set();                  // fully-selected column indices
+  const selRows = new Set();                  // fully-selected data-row indices
+  const blocks = [];                          // committed cell rectangles: { rows:Set<dataIndex>, c0, c1 }
+  let drag = null;                            // live drag rectangle (view-space) while selecting
+  let activeCell = null;                      // { i, c } anchor cell for the outline
+  let viewCache = [];                         // last rendered view (data indices, in view order)
+  function clearSel() { selCols.clear(); selRows.clear(); blocks.length = 0; activeCell = null; }
   const colStyleEl = document.createElement("style");
   document.head.appendChild(colStyleEl);
+
+  // ---- Theme: defaults to the system setting; a manual toggle is persisted ----
+  const THEME_KEY = "dropcsv-theme";
+  function setTheme(t) {
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+    else delete document.documentElement.dataset.theme;
+  }
+  function effectiveTheme() {
+    const t = document.documentElement.dataset.theme;
+    if (t) return t;
+    return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+  }
+  try { const saved = localStorage.getItem(THEME_KEY); if (saved) setTheme(saved); } catch (e) {}
+  themeBtn.addEventListener("click", () => {
+    const next = effectiveTheme() === "dark" ? "light" : "dark";
+    setTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  });
 
   // ---- CSV parsing (RFC 4180: quotes, escaped "", embedded commas/newlines) ----
   function detectDelimiter(text) {
@@ -103,6 +128,7 @@
     rowText = rows.map((r) => r.join("  ").toLowerCase());
     sortCol = null; sortDir = "asc";
     searchEl.value = "";
+    selCols.clear(); selRows.clear();
     currentName = /\.(csv|tsv)$/i.test(name) ? name : (name || "table") + ".csv";
     for (const k in colWidths) delete colWidths[k];
     applyColWidths();
@@ -110,6 +136,7 @@
     fileNameEl.textContent = name;
     fileDimsEl.textContent = `${rows.length.toLocaleString()} rows · ${ncols} cols`;
     toolbar.classList.remove("hidden");
+    statusbar.classList.remove("hidden");
     empty.classList.add("hidden");
     tableWrap.style.display = "block";
 
@@ -128,17 +155,54 @@
   function buildHead() {
     let html = '<tr><th class="rownum" data-col="-1">#</th>';
     for (let c = 0; c < ncols; c++) {
-      html += `<th data-col="${c}"${colNumeric[c] ? ' class="num"' : ""}>` +
-              `${esc(headers[c])}<span class="arrow" data-arrow="${c}"></span><span class="resizer"></span></th>`;
+      const cls = [colNumeric[c] && "num", selCols.has(c) && "selcol"].filter(Boolean).join(" ");
+      const glyph = c === sortCol ? (sortDir === "asc" ? "▲" : "▼") : "▼";
+      const active = c === sortCol ? " active" : "";
+      html += `<th data-col="${c}"${cls ? ` class="${cls}"` : ""}>` +
+              `<span class="hname">${esc(headers[c])}</span>` +
+              `<span class="caret${active}">${glyph}</span>` +
+              `<span class="resizer"></span></th>`;
     }
     theadEl.innerHTML = html + "</tr>";
   }
 
-  function updateArrows() {
-    theadEl.querySelectorAll(".arrow").forEach((a) => {
-      const c = Number(a.dataset.arrow);
-      a.textContent = c === sortCol ? (sortDir === "asc" ? "▲" : "▼") : "";
-    });
+  // Is cell (data-row i, column c, view-position k) part of the current selection?
+  function cellSelected(i, c, k) {
+    if (selCols.has(c) || selRows.has(i)) return true;
+    for (const b of blocks) if (b.rows.has(i) && c >= b.c0 && c <= b.c1) return true;
+    if (drag) {
+      const k0 = Math.min(drag.anchorK, drag.curK), k1 = Math.max(drag.anchorK, drag.curK);
+      const c0 = Math.min(drag.anchorC, drag.curC), c1 = Math.max(drag.anchorC, drag.curC);
+      if (k >= k0 && k <= k1 && c >= c0 && c <= c1) return true;
+    }
+    return false;
+  }
+
+  // Stats over the selected cells, intersected with the current view.
+  function updateStatus(view) {
+    countEl.textContent = view.length === rows.length
+      ? `${rows.length.toLocaleString()} rows`
+      : `${view.length.toLocaleString()} of ${rows.length.toLocaleString()} rows`;
+    if (!selCols.size && !selRows.size && !blocks.length && !drag) { statsEl.textContent = ""; return; }
+    let count = 0, numCount = 0, sum = 0, min = Infinity, max = -Infinity;
+    const uniq = new Set();
+    for (let k = 0; k < view.length; k++) {
+      const i = view[k], r = rows[i];
+      for (let c = 0; c < ncols; c++) {
+        if (!cellSelected(i, c, k)) continue;
+        const v = r[c];
+        if (v == null || v.trim() === "") continue;
+        count++; uniq.add(v);
+        const n = toNumber(v);
+        if (!Number.isNaN(n)) { numCount++; sum += n; if (n < min) min = n; if (n > max) max = n; }
+      }
+    }
+    const fmt = (x) => x.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const parts = [];
+    if (numCount > 0) parts.push(`Sum ${fmt(sum)}`, `Avg ${fmt(sum / numCount)}`, `Min ${fmt(min)}`, `Max ${fmt(max)}`);
+    parts.push(`Count ${count.toLocaleString()}`, `Unique ${uniq.size.toLocaleString()}`);
+    if (numCount > 0 && numCount < count) parts.push(`Numeric ${numCount.toLocaleString()}`);
+    statsEl.textContent = parts.join("   ·   ");
   }
 
   // ---- View (filter + sort) ----
@@ -168,32 +232,94 @@
 
   function render() {
     const view = applyView();
+    viewCache = view;
+    buildHead();
     const parts = new Array(view.length);
     for (let k = 0; k < view.length; k++) {
-      const i = view[k], r = rows[i];
-      let cells = `<td class="rownum">${i + 1}</td>`;
-      for (let c = 0; c < ncols; c++) cells += `<td${colNumeric[c] ? ' class="num"' : ""}>${esc(r[c] ?? "")}</td>`;
-      parts[k] = `<tr>${cells}</tr>`;
+      const i = view[k], r = rows[i], rowSel = selRows.has(i);
+      let cells = `<td class="rownum${rowSel ? " sel" : ""}">${i + 1}</td>`;
+      for (let c = 0; c < ncols; c++) {
+        const sel = cellSelected(i, c, k);
+        const active = activeCell && activeCell.i === i && activeCell.c === c;
+        const cls = [colNumeric[c] && "num", sel && "sel", active && "active"].filter(Boolean).join(" ");
+        cells += `<td${cls ? ` class="${cls}"` : ""} data-c="${c}">${esc(r[c] ?? "")}</td>`;
+      }
+      parts[k] = `<tr data-row="${i}" data-k="${k}">${cells}</tr>`;
     }
     tbodyEl.innerHTML = parts.join("");
-    updateArrows();
-    countEl.textContent = view.length === rows.length
-      ? `${rows.length.toLocaleString()} rows`
-      : `${view.length.toLocaleString()} of ${rows.length.toLocaleString()} rows`;
+    updateStatus(view);
   }
 
   // ---- Events ----
+  // Header: caret cycles sort (asc → desc → off); clicking the name selects the column
+  // (Cmd/Ctrl-click adds to the selection for multi-column stats).
   theadEl.addEventListener("click", (e) => {
+    if (e.target.closest(".resizer")) return;
     const th = e.target.closest("th");
     if (!th) return;
-    if (e.target.closest(".resizer")) return; // resizing, not sorting
     const c = Number(th.dataset.col);
-    if (c < 0) return; // rownum column
-    if (sortCol !== c) { sortCol = c; sortDir = "asc"; }
-    else if (sortDir === "asc") sortDir = "desc";
-    else { sortCol = null; sortDir = "asc"; } // third click clears
+    if (c < 0) return; // # gutter header
+    if (e.target.closest(".caret")) {
+      if (sortCol !== c) { sortCol = c; sortDir = "asc"; }
+      else if (sortDir === "asc") sortDir = "desc";
+      else { sortCol = null; sortDir = "asc"; }
+    } else {
+      if (!(e.metaKey || e.ctrlKey)) clearSel();
+      if (selCols.has(c)) selCols.delete(c); else selCols.add(c);
+    }
     render();
   });
+
+  // Click the row-number gutter to select a row (Cmd/Ctrl-click for multiple).
+  tbodyEl.addEventListener("click", (e) => {
+    const td = e.target.closest("td.rownum");
+    if (!td) return;
+    const i = Number(td.closest("tr").dataset.row);
+    if (!(e.metaKey || e.ctrlKey)) clearSel();
+    if (selRows.has(i)) selRows.delete(i); else selRows.add(i);
+    render();
+  });
+
+  // Cell selection: click a cell, or drag a rectangle; Shift extends, Cmd/Ctrl adds a block.
+  function cellCoords(t) {
+    const td = t && t.closest && t.closest("td[data-c]");
+    if (!td) return null;
+    const tr = td.closest("tr");
+    return { k: Number(tr.dataset.k), c: Number(td.dataset.c), i: Number(tr.dataset.row) };
+  }
+  function commitDrag() {
+    if (!drag) return;
+    const k0 = Math.min(drag.anchorK, drag.curK), k1 = Math.max(drag.anchorK, drag.curK);
+    const c0 = Math.min(drag.anchorC, drag.curC), c1 = Math.max(drag.anchorC, drag.curC);
+    const rowSet = new Set();
+    for (let k = k0; k <= k1; k++) rowSet.add(viewCache[k]);
+    blocks.push({ rows: rowSet, c0, c1 });
+    drag = null;
+    render();
+  }
+  tbodyEl.addEventListener("mousedown", (e) => {
+    const cc = cellCoords(e.target);
+    if (!cc) return;                 // gutter / outside → leave to the row-select click handler
+    e.preventDefault();              // suppress native text selection during a drag
+    if (e.shiftKey && activeCell) {
+      const aK = viewCache.indexOf(activeCell.i);
+      drag = { anchorK: aK < 0 ? cc.k : aK, anchorC: activeCell.c, curK: cc.k, curC: cc.c };
+      commitDrag();
+    } else {
+      if (!(e.metaKey || e.ctrlKey)) clearSel();
+      activeCell = { i: cc.i, c: cc.c };
+      drag = { anchorK: cc.k, anchorC: cc.c, curK: cc.k, curC: cc.c };
+      render();
+    }
+  });
+  window.addEventListener("mousemove", (e) => {
+    if (!drag) return;
+    const cc = cellCoords(e.target);
+    if (!cc || (cc.k === drag.curK && cc.c === drag.curC)) return;
+    drag.curK = cc.k; drag.curC = cc.c;
+    render();
+  });
+  window.addEventListener("mouseup", () => { if (drag) commitDrag(); });
 
   let rafPending = false;
   searchEl.addEventListener("input", () => {
@@ -245,6 +371,42 @@
   }
   $("download").addEventListener("click", exportCSV);
 
+  // ---- Copy the current selection to the clipboard as TSV (bounding box, view order) ----
+  function tsvCell(s) { s = String(s ?? ""); return /[\t\n\r"]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+  function selectionToTSV() {
+    if (!selCols.size && !selRows.size && !blocks.length) return null;
+    const view = viewCache;
+    let cMin = Infinity, cMax = -Infinity;
+    for (let k = 0; k < view.length; k++) {
+      const i = view[k];
+      for (let c = 0; c < ncols; c++) if (cellSelected(i, c, k)) { if (c < cMin) cMin = c; if (c > cMax) cMax = c; }
+    }
+    if (cMin > cMax) return null;
+    const lines = [];
+    for (let k = 0; k < view.length; k++) {
+      const i = view[k]; let any = false; const cells = [];
+      for (let c = cMin; c <= cMax; c++) { const s = cellSelected(i, c, k); if (s) any = true; cells.push(s ? rows[i][c] : ""); }
+      if (any) lines.push(cells.map(tsvCell).join("\t"));
+    }
+    return lines.join("\n");
+  }
+  function copyText(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+        return;
+      }
+    } catch (e) {}
+    fallbackCopy(text);
+  }
+  function fallbackCopy(text) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+    } catch (e) {}
+  }
+
   // Drag & drop (anywhere on the page)
   let dragDepth = 0;
   window.addEventListener("dragenter", (e) => { e.preventDefault(); if (++dragDepth === 1) overlay.classList.add("show"); });
@@ -268,8 +430,15 @@
   // Keyboard: "/" focuses filter, Esc clears/blurs
   window.addEventListener("keydown", (e) => {
     if (e.key === "/" && document.activeElement !== searchEl) { e.preventDefault(); searchEl.focus(); searchEl.select(); }
-    else if (e.key === "Escape" && document.activeElement === searchEl) {
-      if (searchEl.value) { searchEl.value = ""; render(); } else searchEl.blur();
+    else if (e.key === "Escape") {
+      if (document.activeElement === searchEl) {
+        if (searchEl.value) { searchEl.value = ""; render(); } else searchEl.blur();
+      } else if (selCols.size || selRows.size || blocks.length) {
+        clearSel(); render();
+      }
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === "c" || e.key === "C") && document.activeElement !== searchEl) {
+      const tsv = selectionToTSV();
+      if (tsv != null) { e.preventDefault(); copyText(tsv); }
     }
   });
 

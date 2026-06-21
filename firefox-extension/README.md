@@ -27,7 +27,7 @@ dropviewer.js   – drop interceptor (reads the File, the part that actually wor
 background.js    – new-tab opener + navigation redirect fallback
 viewer.html      – table UI (shell + styles)
 viewer.js        – parsing / sort / filter / resize / CSV export + ?id= / ?src= load
-icon.svg         – extension icon (grid logo)
+icon.svg         – extension icon (emerald droplet logo)
 ```
 
 ## Behaviour & caveats

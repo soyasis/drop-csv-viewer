@@ -19,7 +19,7 @@
     --shadow: rgba(0,0,0,.06);
   }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --bg: #131517;
       --bg-soft: #17191c;
       --zebra: #161a1e;
@@ -32,6 +32,19 @@
       --accent-soft: #16314f;
       --shadow: rgba(0,0,0,.4);
     }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131517;
+    --bg-soft: #17191c;
+    --zebra: #161a1e;
+    --hover: #1e2329;
+    --text: #e6e8ea;
+    --muted: #8b949e;
+    --border: #272b30;
+    --header-bg: #1a1d21;
+    --accent: #4c8dff;
+    --accent-soft: #16314f;
+    --shadow: rgba(0,0,0,.4);
   }
 
   * { box-sizing: border-box; }
@@ -104,6 +117,23 @@
   thead th .arrow:empty { margin: 0; }
   .resizer { position: absolute; top: 0; right: 0; width: 8px; height: 100%; cursor: col-resize; z-index: 1; }
   .resizer:hover { background: var(--accent); opacity: .35; }
+  thead th .hname { cursor: pointer; }
+  thead th .caret { margin-left: 6px; font-size: 11px; line-height: 1; color: var(--muted); opacity: .55; cursor: pointer; }
+  thead th .caret:hover { opacity: 1; }
+  thead th .caret.active { opacity: 1; color: var(--accent); }
+  thead th.selcol { background: var(--accent-soft); }
+  tbody td.sel { background: var(--accent-soft) !important; }
+  tbody td.active { outline: 2px solid var(--accent); outline-offset: -2px; }
+  tbody td[data-c] { cursor: cell; }
+
+  /* ---- Status bar ---- */
+  .statusbar {
+    flex: none; display: flex; align-items: center; gap: 14px;
+    padding: 6px 14px; border-top: 1px solid var(--border); background: var(--bg-soft); font-size: 12px;
+  }
+  .statusbar.hidden { display: none; }
+  .statusbar .count { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .statusbar .stats { margin-left: auto; color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
   th.rownum, td.rownum {
     position: sticky; left: 0; z-index: 1;
     width: 56px; min-width: 56px; text-align: right; color: var(--muted);
@@ -172,10 +202,14 @@
     </div>
     <div class="spacer"></div>
     <input type="search" class="search" id="search" placeholder="Filter…  (press /)" autocomplete="off" spellcheck="false">
-    <span class="count" id="count"></span>
     <button class="icon-btn" id="download" title="Download current view as CSV">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="theme" title="Toggle light / dark theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none"/>
       </svg>
     </button>
   </div>
@@ -192,6 +226,11 @@
       <h1>Drop a CSV here</h1>
       <p>or click to choose · paste with <kbd>⌘V</kbd></p>
     </div>
+  </div>
+
+  <div class="statusbar hidden" id="statusbar">
+    <span class="count" id="count"></span>
+    <span class="stats" id="stats"></span>
   </div>
 
   <div class="drop-overlay" id="overlay"><div class="pill">Drop to open</div></div>
