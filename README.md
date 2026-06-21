@@ -15,6 +15,21 @@ Two ways to use it:
 - **`viewer.html`** — a standalone single-file viewer. Open it in any browser and drop a
   CSV on it. Zero install, works offline, nothing leaves your machine.
 
+## Chrome / Chromium
+
+The same code runs on Chrome via a one-line `browser`/`chrome` shim — only the MV3
+manifest (`chrome/manifest.json`) and PNG icons differ. Build a loadable copy with:
+
+```bash
+bash build-chrome.sh        # → dist/chrome/
+```
+
+Then `chrome://extensions` → enable **Developer mode** → **Load unpacked** → pick `dist/chrome/`.
+
+**Note:** for local `file://` CSVs, turn on **"Allow access to file URLs"** on the
+extension's details page (Chrome blocks file access by default). Dropping a CSV onto a
+normal web page works without it.
+
 ## Features
 
 - Type-to-filter across all columns (press `/` to focus, `Esc` to clear)

@@ -4,6 +4,7 @@
 // dropped File needs no file:// access — which is why this works where fetch() didn't.
 (() => {
   "use strict";
+  const browser = globalThis.browser ?? globalThis.chrome; // Firefox / Chrome API shim
 
   const isCsvFile = (f) => !!f && /\.(csv|tsv)$/i.test(f.name);
   const dragHasFile = (dt) => !!dt && Array.from(dt.types || []).includes("Files");

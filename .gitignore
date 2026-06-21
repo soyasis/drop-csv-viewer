@@ -1,2 +1,5 @@
 .DS_Store
 firefox-extension/web-ext-artifacts/
+dist/chrome/
+dist/*.png
+dist/*.zip

@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Drop CSV Viewer",
+  "version": "1.4.0",
+  "description": "Opens .csv / .tsv files as a searchable, sortable table.",
+  "icons": {
+    "16": "icon-16.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["webNavigation", "tabs"],
+  "host_permissions": ["*://*/*", "file:///*"],
+  "content_scripts": [
+    {
+      "matches": ["*://*/*", "file:///*"],
+      "run_at": "document_idle",
+      "all_frames": false,
+      "js": ["dropviewer.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    { "resources": ["viewer.html"], "matches": ["<all_urls>"] }
+  ]
+}

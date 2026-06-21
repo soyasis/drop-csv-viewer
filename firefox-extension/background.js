@@ -3,6 +3,7 @@
 //     new tab — passing the text in memory, since the viewer can't read file:// itself.
 // (2) Redirects direct .csv/.tsv navigations (blank tab drop, clicked link, typed URL)
 //     to the viewer as a fallback.
+const browser = globalThis.browser ?? globalThis.chrome; // Firefox / Chrome API shim
 const pending = new Map();
 let seq = 0;
 

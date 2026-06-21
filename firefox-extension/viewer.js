@@ -1,5 +1,6 @@
 (() => {
   "use strict";
+  const browser = globalThis.browser ?? globalThis.chrome; // Firefox / Chrome API shim
 
   // ---- State ----
   let headers = [];      // column names
