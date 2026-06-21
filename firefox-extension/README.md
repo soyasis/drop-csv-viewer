@@ -1,4 +1,4 @@
-# CSV Table Viewer — Firefox extension
+# Drop CSV Viewer — Firefox extension
 
 Drag a `.csv` / `.tsv` onto any open web page → it opens as a searchable, sortable
 table in a new tab. No network, no data leaves your machine.
@@ -41,7 +41,7 @@ icon.svg         – extension icon (grid logo)
 
 ## Try it now (no signing)
 
-1. Remove any older build first: `about:addons` → CSV Table Viewer → Remove.
+1. Remove any older build first: `about:addons` → Drop CSV Viewer → Remove.
 2. `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → pick `manifest.json`.
 3. Open any normal web page, drag `../sample.csv` onto it → a new tab opens with the table.
 

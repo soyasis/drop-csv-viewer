@@ -1,4 +1,4 @@
-// CSV Table Viewer — drop interceptor (runs on every page).
+// Drop CSV Viewer — drop interceptor (runs on every page).
 // Catches a .csv/.tsv file dropped anywhere, reads it via the File API, and hands the
 // text to the background script, which opens it as a table in a new tab. Reading a
 // dropped File needs no file:// access — which is why this works where fetch() didn't.

@@ -1,19 +1,19 @@
 <p align="center">
-  <img src="firefox-extension/icon.svg" alt="CSV Table Viewer logo" width="96" height="96">
+  <img src="firefox-extension/icon.svg" alt="Drop CSV Viewer logo" width="96" height="96">
 </p>
 
-# firefox-csv-viewer
+# Drop CSV Viewer
 
-Preview local CSV/TSV files as a clean, searchable, sortable table — without opening
-Excel or Numbers.
+Drag a CSV or TSV onto any Firefox tab and read it instantly as a sortable, filterable
+table — no link to open, no upload, no Excel. Fully local and open source.
 
 Two ways to use it:
 
-- **`viewer.html`** — a standalone single-file viewer. Open it in any browser and drag a
-  CSV onto it. Zero install, works offline, nothing leaves your machine.
-- **`firefox-extension/`** — a Firefox / Zen extension: drag a `.csv` / `.tsv` onto any
+- **`firefox-extension/`** — the Firefox / Zen extension: drag a `.csv` / `.tsv` onto any
   page and it opens as a table in a new tab. See
   [firefox-extension/README.md](firefox-extension/README.md) for install & signing.
+- **`viewer.html`** — a standalone single-file viewer. Open it in any browser and drop a
+  CSV on it. Zero install, works offline, nothing leaves your machine.
 
 ## Features
 
