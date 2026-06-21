@@ -321,6 +321,13 @@
   });
   window.addEventListener("mouseup", () => { if (drag) commitDrag(); });
 
+  // Click empty space (outside cells, headers, and controls) to clear the selection.
+  document.addEventListener("click", (e) => {
+    if (!selCols.size && !selRows.size && !blocks.length) return;
+    if (e.target.closest("th, td, .search, .icon-btn, .file-meta")) return;
+    clearSel(); render();
+  });
+
   let rafPending = false;
   searchEl.addEventListener("input", () => {
     if (rafPending) return;
